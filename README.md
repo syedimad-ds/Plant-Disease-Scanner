@@ -10,7 +10,7 @@ This project is an interactive web application that uses Deep Learning and Compu
 * **Model Serialization:** HDF5 (.h5) & Joblib (.pkl)
 
 ## 🚀 Live Demo
-Check out the live web application here: **[Insert your Streamlit Link Here]**
+Check out the live web application here: **[https://plant-disease-scanner-k2.streamlit.app/]**
 
 ## 🧠 How It Works
 The brain of this application is a Convolutional Neural Network (CNN) built using Transfer Learning.
