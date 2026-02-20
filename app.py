@@ -2,75 +2,62 @@ import streamlit as st
 import tensorflow as tf
 import numpy as np
 from PIL import Image
+import joblib
 
-
-st.set_page_config(page_title="Plant Disease Scanner", page_icon="🌿")
-st.title("🌿 AI Plant Disease Scanner")
-st.write("Upload a photo or take a picture of a plant leaf to detect potential diseases.")
-
-CLASS_NAMES = [
-    'Apple___Apple_scab', 'Apple___Black_rot', 'Apple___Cedar_apple_rust', 'Apple___healthy', 
-    'Blueberry___healthy', 'Cherry_(including_sour)___Powdery_mildew', 'Cherry_(including_sour)___healthy', 
-    'Corn_(maize)___Cercospora_leaf_spot Gray_leaf_spot', 'Corn_(maize)___Common_rust_', 
-    'Corn_(maize)___Northern_Leaf_Blight', 'Corn_(maize)___healthy', 'Grape___Black_rot', 
-    'Grape___Esca_(Black_Measles)', 'Grape___Leaf_blight_(Isariopsis_Leaf_Spot)', 'Grape___healthy', 
-    'Orange___Haunglongbing_(Citrus_greening)', 'Peach___Bacterial_spot', 'Peach___healthy', 
-    'Pepper,_bell___Bacterial_spot', 'Pepper,_bell___healthy', 'Potato___Early_blight', 
-    'Potato___Late_blight', 'Potato___healthy', 'Raspberry___healthy', 'Soybean___healthy', 
-    'Squash___Powdery_mildew', 'Strawberry___Leaf_scorch', 'Strawberry___healthy', 
-    'Tomato___Bacterial_spot', 'Tomato___Early_blight', 'Tomato___Late_blight', 'Tomato___Leaf_Mold', 
-    'Tomato___Septoria_leaf_spot', 'Tomato___Spider_mites Two-spotted_spider_mite', 'Tomato___Target_Spot', 
-    'Tomato___Tomato_Yellow_Leaf_Curl_Virus', 'Tomato___Tomato_mosaic_virus', 'Tomato___healthy'
-]
+st.set_page_config(page_title="Debug Mode", layout="wide")
+st.title("🛠️ AI Diagnostic Mode")
 
 @st.cache_resource
 def load_model():
     model = tf.keras.models.load_model('plant_disease_model.h5')
-    return model
+    classes = joblib.load('plant_disease_classes.pkl')
+    return model, classes
 
-try:
-    model = load_model()
-except Exception as e:
-    st.error("Model file not found. Please ensure plant_disease_model.h5 is uploaded.")
-    st.stop()
+model, class_names = load_model()
 
-tab1, tab2 = st.tabs(["📁 Upload Image", "📸 Take a Picture"])
-image_to_scan = None
+uploaded_file = st.file_uploader("Upload a test image", type=["jpg", "jpeg", "png"])
 
-with tab1:
-    uploaded_file = st.file_uploader("Drag and drop or click to upload", type=["jpg", "jpeg", "png"])
-    if uploaded_file is not None:
-        image_to_scan = Image.open(uploaded_file)
-
-with tab2:
-    camera_photo = st.camera_input("Take a picture of the leaf")
-    if camera_photo is not None:
-        image_to_scan = Image.open(camera_photo)
-
-if image_to_scan is not None:
-    st.markdown("---")
-    st.image(image_to_scan, caption="Image to Scan", use_container_width=True)
-    st.write("🔄 Scanning...")
+if uploaded_file is not None:
+    image_to_scan = Image.open(uploaded_file).convert('RGB')
+    st.image(image_to_scan, caption="Uploaded Image", width=300)
     
+    # Base Image Array
     img = image_to_scan.resize((224, 224))
     img_array = tf.keras.preprocessing.image.img_to_array(img)
     img_array = np.expand_dims(img_array, axis=0)
     
-    img_array = img_array / 255.0
-   
-    predictions = model.predict(img_array)
-    predicted_index = np.argmax(predictions)
-    predicted_class = CLASS_NAMES[predicted_index]
-    confidence = np.max(predictions) * 100
+    # --- The 3 Mathematical Transformations ---
+    # 1. Raw Pixels (0 to 255)
+    img_raw = img_array.copy()
     
-    clean_label = predicted_class.replace("___", " - ").replace("_", " ")
+    # 2. Rescaled (0 to 1)
+    img_255 = img_array.copy() / 255.0
     
-    st.subheader("📋 Scan Results")
-    if "healthy" in clean_label.lower():
-        st.success(f"**Diagnosis:** {clean_label}")
-        st.balloons()
-    else:
-        st.error(f"**Diagnosis:** {clean_label}")
+    # 3. MobileNetV2 Standard (-1 to 1)
+    img_mobile = tf.keras.applications.mobilenet_v2.preprocess_input(img_array.copy())
+    
+    # --- Get Predictions ---
+    pred_raw = model.predict(img_raw)
+    pred_255 = model.predict(img_255)
+    pred_mobile = model.predict(img_mobile)
+    
+    # --- UI Layout ---
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        st.subheader("Test 1: Raw (0 to 255)")
+        idx = np.argmax(pred_raw)
+        st.write(f"**Guess:** {class_names[idx]}")
+        st.write(f"**Confidence:** {np.max(pred_raw)*100:.2f}%")
         
-    st.info(f"**Confidence:** {confidence:.2f}%")
-
+    with col2:
+        st.subheader("Test 2: Rescaled (0 to 1)")
+        idx = np.argmax(pred_255)
+        st.write(f"**Guess:** {class_names[idx]}")
+        st.write(f"**Confidence:** {np.max(pred_255)*100:.2f}%")
+        
+    with col3:
+        st.subheader("Test 3: MobileNetV2 (-1 to 1)")
+        idx = np.argmax(pred_mobile)
+        st.write(f"**Guess:** {class_names[idx]}")
+        st.write(f"**Confidence:** {np.max(pred_mobile)*100:.2f}%")
