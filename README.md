@@ -14,6 +14,7 @@ Check out the live web application here: **[https://plant-disease-scanner-k2.str
 
 # 📊 Dataset
 Kaggle Dataset: **[https://www.kaggle.com/datasets/vipoooool/new-plant-diseases-dataset]**
+
 ## 🧠 How It Works
 The brain of this application is a Convolutional Neural Network (CNN) built using Transfer Learning.
 1. **Transfer Learning:** I utilized Google's `MobileNetV2`, a highly efficient, pre-trained image classification model. I froze the base layers and attached a custom Dense classification head to identify specific plant diseases.
