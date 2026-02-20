@@ -52,12 +52,12 @@ if image_to_scan is not None:
     st.image(image_to_scan, caption="Image to Scan", use_container_width=True)
     st.write("🔄 Scanning...")
     
-    image_to_scan = image_to_scan.convert('RGB')
-    
     img = image_to_scan.resize((224, 224))
     img_array = tf.keras.preprocessing.image.img_to_array(img)
     img_array = np.expand_dims(img_array, axis=0)
     
+    img_array = img_array / 255.0
+   
     predictions = model.predict(img_array)
     predicted_index = np.argmax(predictions)
     predicted_class = CLASS_NAMES[predicted_index]
@@ -73,3 +73,4 @@ if image_to_scan is not None:
         st.error(f"**Diagnosis:** {clean_label}")
         
     st.info(f"**Confidence:** {confidence:.2f}%")
+
