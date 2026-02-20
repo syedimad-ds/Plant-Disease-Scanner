@@ -40,3 +40,16 @@ While this model achieves high validation accuracy on the test set, deploying co
 * **Lighting Conditions:** Harsh shadows, glare from the sun, or poor smartphone camera quality can alter the pixel arrays enough to cause misclassification.
 
 **Future Improvements:** To make this production-ready for commercial farming, the architecture should be upgraded from an Image Classifier to an Object Detection model (like YOLOv8) or an Image Segmentation model (like Mask R-CNN). This would allow the AI to draw bounding boxes exactly around the diseased spots on a leaf, ignoring background noise entirely.
+
+### ⚠️ Real-World Deployment & Data Bias Analysis
+While this Convolutional Neural Network (CNN) achieved an impressive **94%+ validation accuracy** during training, deploying it to a live web environment revealed a classic example of **data distribution shift** and environmental bias.
+
+* **The PlantVillage Bias:** The model was trained heavily on the PlantVillage dataset, which primarily features isolated leaves photographed on flat, solid-colored backgrounds (lab conditions). 
+* **The Real-World Failure:** When users upload photos of leaves taken in their natural environment (e.g., with dirt, grass, hands, or shadows in the background), the model's confidence plummets. Instead of recognizing the disease, the model recognizes the *absence of the lab background* and incorrectly defaults to inaccurate predictions.
+
+#### 🛠️ Current Mitigations & Future Roadmap
+To handle this data drift in production, I implemented a **Confidence Guardrail** within the Streamlit application. The app intercepts the model's output matrix and strictly rejects any prediction with a confidence score below 80%, prompting the user to isolate the leaf against a plain background. 
+
+**Future Iterations will include:**
+1. **Background Removal Pipeline:** Integrating `rembg` to automatically strip environmental noise and substitute a solid background before the image tensor reaches the model.
+2. **Object Detection (YOLO):** Training a preliminary bounding-box model to crop strictly to the leaf's coordinates, entirely bypassing the background data shift.
