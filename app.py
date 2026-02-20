@@ -4,8 +4,17 @@ import numpy as np
 from PIL import Image
 import joblib
 
-st.set_page_config(page_title="Debug Mode", layout="wide")
-st.title("🛠️ AI Diagnostic Mode")
+st.set_page_config(page_title="Plant Disease Scanner", page_icon="🌿", layout="centered")
+
+st.title("🌿 AI Plant Disease Scanner")
+st.write("Upload a photo or take a picture of a plant leaf to detect potential diseases.")
+st.info("""
+**💡 How to get the best results:**
+This AI was trained in a controlled lab environment. For the highest accuracy:
+1. Pluck the leaf from the plant.
+2. Place it flat on a **plain white or solid-colored background** (like a piece of paper).
+3. Ensure good lighting and center the leaf in the frame.
+""")
 
 @st.cache_resource
 def load_model():
@@ -13,51 +22,56 @@ def load_model():
     classes = joblib.load('plant_disease_classes.pkl')
     return model, classes
 
-model, class_names = load_model()
+try:
+    model, class_names = load_model()
+except Exception as e:
+    st.error("Model files not found. Please ensure .h5 and .pkl files are uploaded.")
+    st.stop()
 
-uploaded_file = st.file_uploader("Upload a test image", type=["jpg", "jpeg", "png"])
+tab1, tab2 = st.tabs(["📁 Upload Image", "📸 Take a Picture"])
+image_to_scan = None
 
-if uploaded_file is not None:
-    image_to_scan = Image.open(uploaded_file).convert('RGB')
-    st.image(image_to_scan, caption="Uploaded Image", width=300)
+with tab1:
+    uploaded_file = st.file_uploader("Choose an image...", type=["jpg", "jpeg", "png"])
+    if uploaded_file is not None:
+        image_to_scan = Image.open(uploaded_file)
+
+with tab2:
+    camera_photo = st.camera_input("Take a picture of the leaf")
+    if camera_photo is not None:
+        image_to_scan = Image.open(camera_photo)
+
+if image_to_scan is not None:
+    st.markdown("---")
+    st.image(image_to_scan, caption="Image to Scan", use_container_width=True)
+    st.write("🔄 Analyzing leaf structure and health...")
     
-    # Base Image Array
+    image_to_scan = image_to_scan.convert('RGB')
     img = image_to_scan.resize((224, 224))
     img_array = tf.keras.preprocessing.image.img_to_array(img)
     img_array = np.expand_dims(img_array, axis=0)
     
-    # --- The 3 Mathematical Transformations ---
-    # 1. Raw Pixels (0 to 255)
-    img_raw = img_array.copy()
+    img_array = img_array / 255.0
     
-    # 2. Rescaled (0 to 1)
-    img_255 = img_array.copy() / 255.0
+    predictions = model.predict(img_array)
+    predicted_index = np.argmax(predictions)
+    predicted_class = class_names[predicted_index]
+    confidence = np.max(predictions) * 100
     
-    # 3. MobileNetV2 Standard (-1 to 1)
-    img_mobile = tf.keras.applications.mobilenet_v2.preprocess_input(img_array.copy())
+    clean_label = predicted_class.replace("___", " - ").replace("_", " ")
     
-    # --- Get Predictions ---
-    pred_raw = model.predict(img_raw)
-    pred_255 = model.predict(img_255)
-    pred_mobile = model.predict(img_mobile)
+    st.subheader("📋 Scan Results")
     
-    # --- UI Layout ---
-    col1, col2, col3 = st.columns(3)
-    
-    with col1:
-        st.subheader("Test 1: Raw (0 to 255)")
-        idx = np.argmax(pred_raw)
-        st.write(f"**Guess:** {class_names[idx]}")
-        st.write(f"**Confidence:** {np.max(pred_raw)*100:.2f}%")
-        
-    with col2:
-        st.subheader("Test 2: Rescaled (0 to 1)")
-        idx = np.argmax(pred_255)
-        st.write(f"**Guess:** {class_names[idx]}")
-        st.write(f"**Confidence:** {np.max(pred_255)*100:.2f}%")
-        
-    with col3:
-        st.subheader("Test 3: MobileNetV2 (-1 to 1)")
-        idx = np.argmax(pred_mobile)
-        st.write(f"**Guess:** {class_names[idx]}")
-        st.write(f"**Confidence:** {np.max(pred_mobile)*100:.2f}%")
+    if confidence < 80.0:
+        st.warning("⚠️ **Diagnosis Unclear**")
+        st.write(f"The model is only **{confidence:.2f}%** confident in its analysis, which is too low to provide a reliable diagnosis.")
+        st.write("🔍 **Reason:** The background might be too cluttered, or the leaf is not centered. Please try again using a plain background.")
+
+    else:
+        if "healthy" in clean_label.lower():
+            st.success(f"**Diagnosis:** {clean_label}")
+            st.balloons()
+        else:
+            st.error(f"**Diagnosis:** {clean_label}")
+            
+        st.write(f"**Confidence:** {confidence:.2f}%")
