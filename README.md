@@ -23,6 +23,7 @@ The brain of this application is a Convolutional Neural Network (CNN) built usin
 
 ## 📂 Repository Structure
 * `app.py`: The Streamlit web application script.
+* `plant_disease.ipynb`: The Jupyter Notebook containing the core machine learning pipeline, including data extraction, image augmentation, and CNN training.
 * `plant_disease_model.h5`: The saved CNN model.
 * `plant_disease_classes.pkl`: The exact category labels mapped to the model's output neurons.
 * `requirements.txt`: The dependencies required to run the app.
